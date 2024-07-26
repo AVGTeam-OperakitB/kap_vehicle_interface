@@ -5,11 +5,13 @@ from pix_dataclass.data_utils import generate_byte_array
 
 @dataclass
 class SteerCtrl:
-    brake_en_ctrl: int = 0
-    aeb_en_ctrl: int = 0
-    brake_dec: int = 0
-    brake_pedal_target: int = 0
-    checksum: int = 0
+    steer_en_ctrl: int = 0
+    steer_mode_ctrl: int = 0
+    steer_angle_target: int = 0
+    steer_angle_rear_target: int = 0
+    steer_angle_speed_ctrl: int = 0
+    steer_life_sig: int = 0
+    checksum_132: int = 0
 
     def update_value(self, **kwargs) -> None:
 
@@ -21,7 +23,7 @@ class SteerCtrl:
     def get_value(self, field_name):
 
         if not hasattr(self, field_name):
-            raise AttributeError(f"'BrakeCtrlData' object has no attribute '{field_name}'")
+            raise AttributeError(f"'SteerCtrl' object has no attribute '{field_name}'")
         return getattr(self, field_name)
 
     def add_cycle_count(self):

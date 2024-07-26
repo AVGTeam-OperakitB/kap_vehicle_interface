@@ -12,19 +12,18 @@ from autoware_auto_vehicle_msgs.msg import TurnIndicatorsCommand
 from autoware_auto_vehicle_msgs.msg import HazardLightsCommand
 from tier4_vehicle_msgs.msg import ActuationCommandStamped
 
-from kap_dataclass.ThrottleCtrlData import ThrottleCtrlData
-from kap_dataclass.BrakeCtrlData import BrakeCtrlData
-from kap_dataclass.SteerCtrlData import SteerCtrlData
-from kap_dataclass.GearCtrlData import GearCtrlDatav
-from kap_dataclass.ParkCtrlData import ParkCtrlData
-from kap_dataclass.VehicleModeCtrlData import VehicleModeCtrlData
+from kap_dataclass.SteerCtrl import SteerCtrl
+from kap_dataclass.BrakeCtrl import BrakeCtrl
+from kap_dataclass.DriveCtrl import DriveCtrl
+from kap_dataclass.VehicleCtrl import VehicleCtrl
+
 
 
 class CANCommandNode(Node):
 
     def __init__(self):
         super().__init__('CANCommandNode')
-        self.can_channel = 'can0'
+        self.can_channel = 'can2'
         self.can_sender = CANSender(self.can_channel)
 
         self.sub_gear_ctrl_cmd = self.create_subscription(GearCommand, '/control/command/gear_cmd',
@@ -53,45 +52,18 @@ class CANCommandNode(Node):
         self.brake_ctrl_send_timer = self.create_timer(0.02, self.brake_ctrl_data_timer_callback)
         self.steer_ctrl_send_timer = self.create_timer(0.02, self.steer_data_timer_callback)
         self.gear_ctrl_send_timer = self.create_timer(0.05, self.gear_ctrl_data_timer_callback)
-        self.park_ctrl_send_timer = self.create_timer(0.02, self.park_ctrl_data_timer_callback)
-        self.vehicle_mode_ctrl_send_timer = self.create_timer(0.1, self.vehicle_mode_ctrl_data_timer_callback)
 
-        self.throttle_ctrl_data = ThrottleCtrlData()
-        self.brake_ctrl_data = BrakeCtrlData()
-        self.steer_ctrl_data = SteerCtrlData()
-        self.gear_ctrl_data = GearCtrlData()
-        self.park_ctrl_data = ParkCtrlData()
-        self.vehicle_mode_ctrl_data = VehicleModeCtrlData()
+        self.steer_ctrl_data = SteerCtrl()
+        self.brake_ctrl_data = BrakeCtrl()
+        self.drive_ctrl_data = DriveCtrl()
+        self.vehicle_ctrl_data = VehicleCtrl()
 
-        self.set_throttle_ctrl_default_value()
+        self.set_steer_ctrl_default_value()
         self.set_brake_ctrl_default_value()
-        self.set_steering_ctrl_default_value()
-        self.set_gear_ctrl_default_value()
-        self.set_park_ctrl_default_value()
-        self.set_vehicle_mode_ctrl_default_value()
+        self.set_drive_ctrl_default_value()
+        self.set_vehicle_ctrl_default_value()
 
-    def set_throttle_ctrl_default_value(self):
-
-        throttle_ctrl_cmd_data = {
-            'throttle_en_ctrl': 1,
-            'throttle_acc': 0,
-            'throttle_pedal_target': 0,
-            'vel_target': 0,
-        }
-        self.throttle_ctrl_data.update_value(**throttle_ctrl_cmd_data)
-        self.can_sender.send(0x100, self.throttle_ctrl_data.get_bytearray())
-
-    def set_brake_ctrl_default_value(self):
-        brake_ctrl_cmd_data = {
-            'brake_en_ctrl': 1,
-            'aeb_en_ctrl': 1,
-            'brake_dec': 0,
-            'brake_pedal_target': 0,
-        }
-        self.brake_ctrl_data.update_value(**brake_ctrl_cmd_data)
-        self.can_sender.send(0x101, self.brake_ctrl_data.get_bytearray())
-
-    def set_steering_ctrl_default_value(self):
+    def set_steer_ctrl_default_value(self):
 
         steer_ctrl_cmd_data = {
             'steer_en_ctrl': 1,
@@ -101,27 +73,27 @@ class CANCommandNode(Node):
         self.steer_ctrl_data.update_value(**steer_ctrl_cmd_data)
         self.can_sender.send(0x102, self.steer_ctrl_data.get_bytearray())
 
-    def set_gear_ctrl_default_value(self):
+    def set_brake_ctrl_default_value(self):
 
         gear_ctrl_cmd_data = {
             'gear_en_ctrl': 1,
             'gear_target': 3,
         }
 
-        self.gear_ctrl_data.update_value(**gear_ctrl_cmd_data)
+        self.brake_ctrl_data.update_value(**gear_ctrl_cmd_data)
         self.can_sender.send(0x103, self.gear_ctrl_data.get_bytearray())
 
-    def set_park_ctrl_default_value(self):
+    def set_drive_ctrl_default_value(self):
 
         park_ctrl_cmd_data = {
             'park_en_ctrl': 1,
             'park_target': 0,
         }
 
-        self.park_ctrl_data.update_value(**park_ctrl_cmd_data)
+        self.drive_ctrl_data.update_value(**park_ctrl_cmd_data)
         self.can_sender.send(0x104, self.park_ctrl_data.get_bytearray())
 
-    def set_vehicle_mode_ctrl_default_value(self):
+    def set_vehicle_ctrl_default_value(self):
 
         vehicle_mode_ctrl_cmd_data = {
             'steer_mode_ctrl': 0,
@@ -129,7 +101,7 @@ class CANCommandNode(Node):
             'turn_light_ctrl': 0,
         }
 
-        self.vehicle_mode_ctrl_data.update_value(**vehicle_mode_ctrl_cmd_data)
+        self.vehicle_ctrl_data.update_value(**vehicle_mode_ctrl_cmd_data)
         self.can_sender.send(0x105, self.vehicle_mode_ctrl_data.get_bytearray())
 
 

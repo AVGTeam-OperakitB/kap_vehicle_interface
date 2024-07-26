@@ -5,11 +5,12 @@ from kap_dataclass.data_utils import generate_byte_array
 
 @dataclass
 class BrakeCtrl:
-    brake_en_ctrl: int = 0
-    aeb_en_ctrl: int = 0
-    brake_dec: int = 0
-    brake_pedal_target: int = 0
-    checksum: int = 0
+    brake_en: int = 0
+    brake_lamp_ctrl: int = 0
+    brake_pdl_target: int = 0
+    epb_ctrl: int = 0
+    brake_life_sig: int = 0
+    checksum_131: int = 0
 
     def update_value(self, **kwargs) -> None:
 
@@ -21,7 +22,7 @@ class BrakeCtrl:
     def get_value(self, field_name):
 
         if not hasattr(self, field_name):
-            raise AttributeError(f"'BrakeCtrlData' object has no attribute '{field_name}'")
+            raise AttributeError(f"'BrakeCtrl' object has no attribute '{field_name}'")
         return getattr(self, field_name)
 
     def add_cycle_count(self):
