@@ -3,9 +3,12 @@ import math
 from rclpy.node import Node
 
 from tier4_vehicle_msgs.msg import BatteryStatus
-from autoware_auto_vehicle_msgs.msg import (ControlModeReport, GearReport, HazardLightsReport, TurnIndicatorsReport,
-                                            SteeringReport, VelocityReport)
-from sensor_msgs.msg import Imu
+from autoware_auto_vehicle_msgs.msg import (ControlModeReport,
+                                            GearReport,
+                                            HazardLightsReport,
+                                            TurnIndicatorsReport,
+                                            SteeringReport,
+                                            VelocityReport)
 import can
 import rclpy
 import threading
@@ -17,8 +20,6 @@ from kap_dataclass.SteerStaFb import SteerStaFb
 from kap_dataclass.VehicleStaFb import VehicleStaFb
 from kap_dataclass.VehicleWorkStaFb import VehicleWorkStaFb
 from kap_dataclass.PowerStaFb import PowerStaFb
-
-# not use but to do
 from kap_dataclass.VehicleFltSta import VehicleFltSta
 from kap_dataclass.WheelRpmFb import WheelRpmFb
 
@@ -33,7 +34,7 @@ class CANReceiverNode(Node):
     def __init__(self):
         super().__init__('CANReportNode')
 
-        self.bus = can.interface.Bus(channel='can0', bustype='socketcan')
+        self.bus = can.Bus(interface='socketcan', channel='can2', bitrate=500000)
         self.running = False
         self.receive_thread = threading.Thread(target=self.receive_data)
 
@@ -45,7 +46,6 @@ class CANReceiverNode(Node):
         # self.msg_obj_indicators_rpt = TurnIndicatorsReport()
         # self.msg_obj_steering_rpt = SteeringReport()
         # self.msg_obj_velocity_rpt = VelocityReport()
-        # self.msg_obj_imu = Imu()
 
         # Report data class
         self.drive_sta_fb = DriveStaFb()
@@ -54,6 +54,8 @@ class CANReceiverNode(Node):
         self.vehicle_sta_fb = VehicleStaFb()
         self.vehicle_work_sta_fb = VehicleWorkStaFb()
         self.power_sta_fb = PowerStaFb()
+        self.vehicle_flt_sta = VehicleFltSta()
+        self.wheel_rpm_fb = WheelRpmFb()
 
         # vehicle status report publisher
         # self.battery_rpt_publisher = self.create_publisher(BatteryStatus, '/vehicle/status/battery_charge', 10)
@@ -65,9 +67,6 @@ class CANReceiverNode(Node):
         #                                                            '/vehicle/status/turn_indicators_status', 10)
         # self.steering_rpt_publisher = self.create_publisher(SteeringReport, '/vehicle/status/steering_status', 10)
         # self.velocity_rpt_publisher = self.create_publisher(VelocityReport, '/vehicle/status/velocity_status', 100)
-
-        # subscriber
-        # self.imu_subscriber = self.create_subscription(Imu, '/imu/data', self.imu_callback, 10)
 
         # publisher timer
 
@@ -121,116 +120,202 @@ class CANReceiverNode(Node):
         # Drive Status Feedback Parsing
         if can_id == 0x530:
             driver_en_sta = unpack('<B', data[0:1])[0] & 0b00000001
-            diver_slop_over = unpack('<B', data[0:1])[0] & 0b00000010
-            driver_mode_Sta = unpack('<B', data[0:1])[0] & 0b00000110
-            gear_fb = unpack('<B', data[0:1])[0] & 0b00110000
+            diver_slop_over = unpack('<B', data[0:1])[0] >> 1 & 0b00000001
+            driver_mode_sta = unpack('<B', data[0:1])[0] >> 2 & 0b00000011
+            gear_fb = unpack('<B', data[0:1])[0] >> 4 & 0b00000011
             speed_fb = unpack('<h', data[1:3])[0] * 0.01
-            throttle_pald_fb = (unpack('<H', data[3:5])[0] & 0b0000001111111111) * 0.1
-            acceleration_fb = unpack('<b', data[5:7])[0] * 0.01
+            throttle_pald_fb = unpack('<H', data[3:5])[0] * 0.1
+            acceleration_fb = unpack('<h', data[5:7])[0] * 0.01
             drive_life = unpack('<B', data[7:8])[0] & 0b00001111
 
             data = {
                 'driver_en_sta': driver_en_sta,
                 'diver_slop_over': diver_slop_over,
-                'driver_mode_Sta': driver_mode_Sta,
+                'driver_mode_sta': driver_mode_sta,
                 'gear_fb': gear_fb,
                 'speed_fb': speed_fb,
                 'throttle_pald_fb': throttle_pald_fb,
                 'acceleration_fb': acceleration_fb,
                 'drive_life': drive_life,
             }
-            self.get_logger().info('Received CAN message with ID {}'.format(can_id))
-            self.get_logger().info('Received CAN message with data {}'.format(data))
-            self.throttle_rpt_data.update_value(**data)
 
-        # # Brake Status FeedBack Parsing
-        # elif can_id == 0x531:
-        #
-        #     data = {
-        #         'brake_en_state': brake_en_state,
-        #         'brake_flt1': brake_flt1,
-        #         'brake_flt2': brake_flt2,
-        #         'brake_pedal_actual': brake_pedal_actual
-        #     }
-        #
-        #     self.brake_rpt_data.update_value(**data)
-        #
-        # # Steering Status FeedBack Parsing
-        # elif can_id == 0x532:
-        #
-        #     data = {
-        #         'steer_en_state': steer_en_state,
-        #         'steer_flt1': steer_flt1,
-        #         'steer_flt2': steer_flt2,
-        #         'steer_angle_actual': steer_angle_actual,
-        #         'steer_angle_spd_actual': steer_angle_spd_actual
-        #     }
-        #
-        #     self.steer_rpt_data.update_value(**data)
-        #
-        # # Vehicle Work Status FeedBack Parsing
-        # elif can_id == 0x534:
-        #
-        #     data = {
-        #         'gear_actual': gear_actual_rpt,
-        #         'gear_flt': gear_flt
-        #     }
-        #
-        #     self.gear_rpt_data.update_value(**data)
-        #
-        #     # Power Status FeedBack Parsing
-        #
-        #     data = {
-        #         'parking_actual': parking_actual,
-        #         'park_flt': park_flt
-        #     }
-        #
-        #     self.park_rpt_data.update_value(**data)
-        #
-        # # Vehicle Status FeedBack Parsing
-        # # TODO : Check AEB_STATE Report
-        # elif can_id == 0x536:
-        #
-        #     data = {
-        #         'acc': acc,
-        #         'brake_light_actual': brake_light_actual,
-        #         'steer_mode_sts': steer_mode_sts,
-        #         'speed': speed,
-        #         'drive_mode_sts': drive_mode_sts,
-        #         'vehicle_mode_sts': vehicle_mode_sts_rpt,
-        #         'back_crash_state': back_crash_state,
-        #         'front_crash_state': front_crash_state,
-        #         'aeb_state': aeb_state,
-        #         'chassis_errcode': chassis_errcode,
-        #         'turn_light_actual': turn_light_actual_rpt,
-        #         'hazard_light_actual_rpt': hazard_light_actual_rpt,
-        #
-        #     }
-        #
-        #     self.vcu_rpt_data.update_value(**data)
-        #
-        # # Vehicle Fault Status Parsing
-        # elif can_id == 0x537:
-        #
-        #     data = {
-        #         'front_left': front_left,
-        #         'front_right': front_right,
-        #         'rear_left': rear_left,
-        #         'rear_right': rear_right
-        #     }
-        #
-        #     self.wheel_spd_rpt_data.update_value(**data)
-        #
-        # # Chassis Wheel Rpm FeedBack Parsing
-        # elif can_id == 0x539:
-        #
-        #     data = {
-        #         'batter_voltage': batter_voltage,
-        #         'battery_current': battery_current,
-        #         'battery_soc': battery_soc
-        #     }
-        #
-        #     self.bms_rpt_data.update_value(**data)
+            self.drive_sta_fb.update_value(**data)
+
+        # Brake Status FeedBack Parsing
+        elif can_id == 0x531:
+            brake_en_sta = unpack('<B', data[0:1])[0] & 0b00000001
+            vehicle_brake_lamp_fb = unpack('<B', data[0:1])[0] >> 2 & 0b00000001
+            epb_fb = unpack('<B', data[0:1])[0] >> 4 & 0b00000011
+            brake_padl_fb = unpack('<H', data[1:3])[0] * 0.1
+            brake_pressure_fb = unpack('<B', data[3:4])[0]
+            brake_life = unpack('<B', data[6:7])[0] & 0b00001111
+
+            data = {
+                'brake_en_sta': brake_en_sta,
+                'vehicle_brake_lamp_fb': vehicle_brake_lamp_fb,
+                'epb_fb': epb_fb,
+                'brake_padl_fb': brake_padl_fb,
+                'brake_pressure_fb': brake_pressure_fb,
+                'brake_life': brake_life
+
+            }
+
+            self.brake_sta_fb.update_value(**data)
+
+        # Steering Status FeedBack Parsing
+        elif can_id == 0x532:
+            steer_en_sta = unpack('<B', data[0:1])[0] & 0b00000001
+            steer_slop_over = unpack('<B', data[0:1])[0] >> 1 & 0b00000001
+            steer_mode_fb = unpack('<B', data[0:1])[0] >> 4 & 0b00001111
+            steer_angle_fb = unpack('<h', data[1:3])[0]
+            steer_angle_rear_fb = unpack('<h', data[3:5])[0]
+            steer_angle_speed_fb = unpack('<B', data[5:6])[0] * 2
+            steer_life = unpack('<B', data[6:7])[0] & 0b00001111
+
+            data = {
+                'steer_en_sta': steer_en_sta,
+                'steer_slop_over': steer_slop_over,
+                'steer_mode_fb': steer_mode_fb,
+                'steer_angle_fb': steer_angle_fb,
+                'steer_angle_rear_fb': steer_angle_rear_fb,
+                'steer_angle_speed_fb': steer_angle_speed_fb,
+                'steer_life': steer_life
+
+            }
+
+            self.steer_sta_fb.update_value(**data)
+
+        # Vehicle Work Status FeedBack Parsing
+        elif can_id == 0x534:
+            driving_mode_fb = unpack('<B', data[0:1])[0] & 0b00000011
+            power_sta_fb = unpack('<B', data[0:1])[0] >> 2 & 0b00000011
+            power_dc_Sta = unpack('<B', data[0:1])[0] >> 4 & 0b00000011
+            speed_limited_mode_fb = unpack('<B', data[1:2])[0] & 0b00000001
+            speed_limited_val_fb = unpack('<H', data[2:4])[0] * 0.1
+            low_power_volt_sta = unpack('<B', data[4:5])[0] * 0.1
+            estop_sta_fb = unpack('<B', data[5:6])[0] & 0b00001111
+            crash_front_sta = unpack('<B', data[5:6])[0] >> 4 & 0b00000001
+            crash_rear_sta = unpack('<B', data[5:6])[0] >> 5 & 0b00000001
+            life = unpack('<B', data[6:7])[0] & 0b00001111
+            checksum = unpack('<B', data[7:8])[0]
+
+            data = {
+                'driving_mode_fb': driving_mode_fb,
+                'power_sta_fb': power_sta_fb,
+                'power_dc_Sta': power_dc_Sta,
+                'speed_limited_mode_fb': speed_limited_mode_fb,
+                'speed_limited_val_fb': speed_limited_val_fb,
+                'low_power_volt_sta': low_power_volt_sta,
+                'estop_sta_fb': estop_sta_fb,
+                'crash_front_sta': crash_front_sta,
+                'crash_rear_sta': crash_rear_sta,
+                'life': life,
+                'checksum': checksum
+            }
+
+            self.vehicle_work_sta_fb.update_value(**data)
+
+        # Power Status FeedBack Parsing
+        elif can_id == 0x535:
+            power_charge_sta = unpack('<B', data[0:1])[0] >> 4 & 0b00000011
+            power_soc_fb = unpack('<B', data[1:2])[0]
+            power_volt_fb = unpack('<H', data[2:4])[0] * 0.1
+            power_curr_fb = unpack('<H', data[4:6])[0] * 0.1 - 1000
+            bms_max_temp = unpack('<B', data[6:7])[0] - 40
+
+            data = {
+                'power_charge_sta': power_charge_sta,
+                'power_soc_fb': power_soc_fb,
+                'power_volt_fb': power_volt_fb,
+                'power_curr_fb': power_curr_fb,
+                'bms_max_temp': bms_max_temp
+            }
+
+            self.power_sta_fb.update_value(**data)
+
+        # Vehicle Status FeedBack Parsing
+        elif can_id == 0x536:
+            pos_lamp_fb = unpack('<B', data[0:1])[0] & 0b00000001
+            head_lamp_fb = unpack('<B', data[0:1])[0] >> 1 & 0b00000001
+            left_lamp_fb = unpack('<B', data[0:1])[0] >> 2 & 0b00000001
+            right_lamp_fb = unpack('<B', data[0:1])[0] >> 3 & 0b00000001
+            hazard_war_lamp_fb = unpack('<B', data[0:1])[0] >> 6 & 0b00000001
+
+            data = {
+                'pos_lamp_fb': pos_lamp_fb,
+                'head_lamp_fb': head_lamp_fb,
+                'left_lamp_fb': left_lamp_fb,
+                'right_lamp_fb': right_lamp_fb,
+                'hazard_war_lamp_fb': hazard_war_lamp_fb
+
+            }
+
+            self.vehicle_sta_fb.update_value(**data)
+
+        # Vehicle Fault Status Parsing
+        elif can_id == 0x537:
+            motor_over_temp_sta = unpack('<B', data[0:1])[0] & 0b00000001
+            bms_over_temp_sta = unpack('<B', data[0:1])[0] >> 1 & 0b00000001
+            brake_over_temp_sta = unpack('<B', data[0:1])[0] >> 2 & 0b00000001
+            steer_over_temp_sta = unpack('<B', data[0:1])[0] >> 3 & 0b00000001
+            under_volt = unpack('<B', data[0:1])[0] >> 4 & 0b00000001
+            sys_flt = unpack('<B', data[1:2])[0] & 0b00001111
+            brake_flt = unpack('<B', data[1:2])[0] >> 4 & 0b00001111
+            parking_flt = unpack('<B', data[2:3])[0] & 0b00001111
+            steer_front_flt = unpack('<B', data[2:3])[0] >> 4 & 0b00001111
+            steer_back_flt = unpack('<B', data[3:4])[0] & 0b00001111
+            motor_lf_flt = unpack('<B', data[3:4])[0] >> 4 & 0b00001111
+            motor_rf_flt = unpack('<B', data[4:5])[0] & 0b00001111
+            motor_lr_flt = unpack('<B', data[4:5])[0] >> 4 & 0b00001111
+            motor_rr_flt = unpack('<B', data[5:6])[0] & 0b00001111
+            bms_flt = unpack('<B', data[5:6])[0] >> 4 & 0b00001111
+            dc_flt = unpack('<B', data[6:7])[0] & 0b00001111
+
+            data = {
+                'motor_over_temp_sta': motor_over_temp_sta,
+                'bms_over_temp_sta': bms_over_temp_sta,
+                'brake_over_temp_sta': brake_over_temp_sta,
+                'steer_over_temp_sta': steer_over_temp_sta,
+                'under_volt': under_volt,
+                'sys_flt': sys_flt,
+                'brake_flt': brake_flt,
+                'parking_flt': parking_flt,
+                'steer_front_flt': steer_front_flt,
+                'steer_back_flt': steer_back_flt,
+                'motor_lf_flt': motor_lf_flt,
+                'motor_rf_flt': motor_rf_flt,
+                'motor_lr_flt': motor_lr_flt,
+                'motor_rr_flt': motor_rr_flt,
+                'bms_flt': bms_flt,
+                'dc_flt': dc_flt
+            }
+
+            self.vehicle_flt_sta.update_value(**data)
+
+        # Chassis Wheel Rpm FeedBack Parsing
+        elif can_id == 0x539:
+            wheel_rpm_lf = unpack('<h', data[0:2])[0]
+            wheel_rpm_rf = unpack('<h', data[2:4])[0]
+            wheel_rpm_lr = unpack('<h', data[4:6])[0]
+            wheel_rpm_rr = unpack('<h', data[6:8])[0]
+
+            data = {
+                'wheel_rpm_lf': wheel_rpm_lf,
+                'wheel_rpm_rf': wheel_rpm_rf,
+                'wheel_rpm_lr': wheel_rpm_lr,
+                'wheel_rpm_rr': wheel_rpm_rr
+            }
+
+            self.wheel_rpm_fb.update_value(**data)
+
+        # self.get_logger().info(f"Drive Status data : {self.drive_sta_fb}")
+        # self.get_logger().info(f"Brake Status data : {self.brake_sta_fb}")
+        # self.get_logger().info(f"Steering Status data : {self.steer_sta_fb}")
+        # self.get_logger().info(f"Vehicle Work Status data : {self.vehicle_work_sta_fb}")
+        # self.get_logger().info(f"Vehicle Status data : {self.vehicle_sta_fb}")
+        # self.get_logger().info(f"Power Status data : {self.power_sta_fb}")
+        self.get_logger().info(f"Vehicle Fault data : {self.vehicle_flt_sta}")
+        # self.get_logger().info(f"Chassis Wheel Rpm data : {self.wheel_rpm_fb}")
 
     # def throttle_ctrl_data_timer_callback(self):
     #     pass

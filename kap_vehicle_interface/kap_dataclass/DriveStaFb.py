@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 class DriveStaFb:
     driver_en_sta: int = 0
     diver_slop_over: int = 0
-    driver_mode_Sta: int = 0
+    driver_mode_sta: int = 0
     gear_fb: int = 0
     speed_fb: float = 0.00
     throttle_pald_fb: float = 0.0
