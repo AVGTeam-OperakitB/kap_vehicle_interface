@@ -4,7 +4,7 @@ from dataclasses import dataclass, fields
 class VehicleWorkStaFb:
     driving_mode_fb: int = 0
     power_sta_fb: int = 0
-    power_dc_Sta: int = 0
+    power_dc_sta: int = 0
     speed_limited_mode_fb: int = 0
     speed_limited_val_fb: float = 0.0
     low_power_volt_sta: float = 0.0

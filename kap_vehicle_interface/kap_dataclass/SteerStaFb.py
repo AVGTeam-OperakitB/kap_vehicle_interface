@@ -20,5 +20,5 @@ class SteerStaFb:
     def get_value(self, field_name):
 
         if not hasattr(self, field_name):
-            raise AttributeError(f"'ThrottleCtrlData' object has no attribute '{field_name}'")
+            raise AttributeError(f"'SteerStaFb' object has no attribute '{field_name}'")
         return getattr(self, field_name)

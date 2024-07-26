@@ -21,5 +21,5 @@ class DriveStaFb:
     def get_value(self, field_name):
 
         if not hasattr(self, field_name):
-            raise AttributeError(f"'ThrottleCtrlData' object has no attribute '{field_name}'")
+            raise AttributeError(f"'DriveStaFb' object has no attribute '{field_name}'")
         return getattr(self, field_name)

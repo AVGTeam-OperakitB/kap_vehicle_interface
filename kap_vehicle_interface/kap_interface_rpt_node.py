@@ -1,8 +1,6 @@
 import math
 
 from rclpy.node import Node
-
-from tier4_vehicle_msgs.msg import BatteryStatus
 from autoware_auto_vehicle_msgs.msg import (ControlModeReport,
                                             GearReport,
                                             HazardLightsReport,
@@ -39,13 +37,12 @@ class CANReceiverNode(Node):
         self.receive_thread = threading.Thread(target=self.receive_data)
 
         # Report message object
-        # self.msg_obj_battery_rpt = BatteryStatus()
-        # self.msg_obj_control_mode_rpt = ControlModeReport()
-        # self.msg_obj_gear_rpt = GearReport()
-        # self.msg_obj_hazardLights_rpt = HazardLightsReport()
-        # self.msg_obj_indicators_rpt = TurnIndicatorsReport()
-        # self.msg_obj_steering_rpt = SteeringReport()
-        # self.msg_obj_velocity_rpt = VelocityReport()
+        self.msg_obj_control_mode_rpt = ControlModeReport()
+        self.msg_obj_gear_rpt = GearReport()
+        self.msg_obj_hazardLights_rpt = HazardLightsReport()
+        self.msg_obj_indicators_rpt = TurnIndicatorsReport()
+        self.msg_obj_steering_rpt = SteeringReport()
+        self.msg_obj_velocity_rpt = VelocityReport()
 
         # Report data class
         self.drive_sta_fb = DriveStaFb()
@@ -58,29 +55,23 @@ class CANReceiverNode(Node):
         self.wheel_rpm_fb = WheelRpmFb()
 
         # vehicle status report publisher
-        # self.battery_rpt_publisher = self.create_publisher(BatteryStatus, '/vehicle/status/battery_charge', 10)
-        # self.control_mode_rpt_publisher = self.create_publisher(ControlModeReport, '/vehicle/status/control_mode', 10)
-        # self.gear_rpt_publisher = self.create_publisher(GearReport, '/vehicle/status/gear_status', 10)
-        # self.hazard_lights_rpt_publisher = self.create_publisher(HazardLightsReport,
-        #                                                          '/vehicle/status/hazard_lights_status', 10)
-        # self.turn_indicators_rpt_publisher = self.create_publisher(TurnIndicatorsReport,
-        #                                                            '/vehicle/status/turn_indicators_status', 10)
-        # self.steering_rpt_publisher = self.create_publisher(SteeringReport, '/vehicle/status/steering_status', 10)
-        # self.velocity_rpt_publisher = self.create_publisher(VelocityReport, '/vehicle/status/velocity_status', 100)
+        self.control_mode_rpt_pub = self.create_publisher(ControlModeReport, '/vehicle/status/control_mode', 10)
+        self.gear_rpt_pub = self.create_publisher(GearReport, '/vehicle/status/gear_status', 10)
+        self.hazard_lights_rpt_pub = self.create_publisher(HazardLightsReport,
+                                                           '/vehicle/status/hazard_lights_status', 10)
+        self.turn_indicators_rpt_pub = self.create_publisher(TurnIndicatorsReport,
+                                                             '/vehicle/status/turn_indicators_status', 10)
+        self.steering_rpt_pub = self.create_publisher(SteeringReport, '/vehicle/status/steering_status', 10)
+        self.velocity_rpt_pub = self.create_publisher(VelocityReport, '/vehicle/status/velocity_status', 10)
 
         # publisher timer
+        self.control_mode_rpt_timer = self.create_timer(0.02, self.control_mode_rpt_timer_callback)
+        self.gear_rpt_timer = self.create_timer(0.02, self.gear_rpt_timer_callback)
+        self.hazard_lights_rpt_timer = self.create_timer(0.02, self.hazard_lights_rpt_timer_callback)
+        self.turn_indicators_rpt_timer = self.create_timer(0.02, self.turn_indicators_rpt_timer_callback)
+        self.steering_rpt_timer = self.create_timer(0.02, self.steering_rpt_timer_callback)
+        self.velocity_rpt_timer = self.create_timer(0.02, self.velocity_rpt_timer_callback)
 
-        # self.throttle_ctrl_send_timer = self.create_timer(0.02, self.throttle_ctrl_data_timer_callback)
-        # self.battery_rpt_timer = self.create_timer(0.02, self.battery_rpt_timer_callback)
-        # self.control_mode_rpt_timer = self.create_timer(0.02, self.control_mode_rpt_timer_callback)
-        # self.gear_rpt_timer = self.create_timer(0.02, self.gear_rpt_timer_callback)
-        # self.hazard_lights_rpt_timer = self.create_timer(0.02, self.hazard_lights_rpt_timer_callback)
-        # self.turn_indicators_rpt_timer = self.create_timer(0.02, self.turn_indicators_rpt_timer_callback)
-        # self.steering_rpt_timer = self.create_timer(0.02, self.steering_rpt_timer_callback)
-        # self.velocity_rpt_timer = self.create_timer(0.02, self.velocity_rpt_timer_callback)
-
-        # global member init
-        self.heading_rate = 0.00
         self.start()
 
     def start(self):
@@ -189,7 +180,7 @@ class CANReceiverNode(Node):
         elif can_id == 0x534:
             driving_mode_fb = unpack('<B', data[0:1])[0] & 0b00000011
             power_sta_fb = unpack('<B', data[0:1])[0] >> 2 & 0b00000011
-            power_dc_Sta = unpack('<B', data[0:1])[0] >> 4 & 0b00000011
+            power_dc_sta = unpack('<B', data[0:1])[0] >> 4 & 0b00000011
             speed_limited_mode_fb = unpack('<B', data[1:2])[0] & 0b00000001
             speed_limited_val_fb = unpack('<H', data[2:4])[0] * 0.1
             low_power_volt_sta = unpack('<B', data[4:5])[0] * 0.1
@@ -202,7 +193,7 @@ class CANReceiverNode(Node):
             data = {
                 'driving_mode_fb': driving_mode_fb,
                 'power_sta_fb': power_sta_fb,
-                'power_dc_Sta': power_dc_Sta,
+                'power_dc_sta': power_dc_sta,
                 'speed_limited_mode_fb': speed_limited_mode_fb,
                 'speed_limited_val_fb': speed_limited_val_fb,
                 'low_power_volt_sta': low_power_volt_sta,
@@ -212,7 +203,6 @@ class CANReceiverNode(Node):
                 'life': life,
                 'checksum': checksum
             }
-
             self.vehicle_work_sta_fb.update_value(**data)
 
         # Power Status FeedBack Parsing
@@ -247,9 +237,7 @@ class CANReceiverNode(Node):
                 'left_lamp_fb': left_lamp_fb,
                 'right_lamp_fb': right_lamp_fb,
                 'hazard_war_lamp_fb': hazard_war_lamp_fb
-
             }
-
             self.vehicle_sta_fb.update_value(**data)
 
         # Vehicle Fault Status Parsing
@@ -308,48 +296,80 @@ class CANReceiverNode(Node):
 
             self.wheel_rpm_fb.update_value(**data)
 
-        # self.get_logger().info(f"Drive Status data : {self.drive_sta_fb}")
-        # self.get_logger().info(f"Brake Status data : {self.brake_sta_fb}")
-        # self.get_logger().info(f"Steering Status data : {self.steer_sta_fb}")
-        # self.get_logger().info(f"Vehicle Work Status data : {self.vehicle_work_sta_fb}")
-        # self.get_logger().info(f"Vehicle Status data : {self.vehicle_sta_fb}")
-        # self.get_logger().info(f"Power Status data : {self.power_sta_fb}")
-        self.get_logger().info(f"Vehicle Fault data : {self.vehicle_flt_sta}")
-        # self.get_logger().info(f"Chassis Wheel Rpm data : {self.wheel_rpm_fb}")
+    def control_mode_rpt_timer_callback(self):
+        casted_control_mode = 0
+        _val = self.vehicle_work_sta_fb.get_value('driving_mode_fb')
+        if _val == 0 or _val == 1:
+            casted_control_mode = 1
+        elif _val == 2 or _val == 3:
+            casted_control_mode = 4
 
-    # def throttle_ctrl_data_timer_callback(self):
-    #     pass
+        self.msg_obj_control_mode_rpt.mode = casted_control_mode
+        self.control_mode_rpt_pub.publish(self.msg_obj_control_mode_rpt)
 
-    # def battery_rpt_timer_callback(self):
-    #     self.msg_obj_battery_rpt.energy_level = float(self.bms_rpt_data.get_value('battery_soc'))
-    #     self.battery_rpt_publisher.publish(self.msg_obj_battery_rpt)
-    #
-    # def control_mode_rpt_timer_callback(self):
-    #     self.msg_obj_control_mode_rpt.mode = self.vcu_rpt_data.get_value('vehicle_mode_sts')
-    #     self.control_mode_rpt_publisher.publish(self.msg_obj_control_mode_rpt)
-    #
-    # def hazard_lights_rpt_timer_callback(self):
-    #     self.msg_obj_hazardLights_rpt.report = self.vcu_rpt_data.get_value('hazard_light_actual')
-    #     self.hazard_lights_rpt_publisher.publish(self.msg_obj_hazardLights_rpt)
-    #
-    # def turn_indicators_rpt_timer_callback(self):
-    #     self.msg_obj_indicators_rpt.report = self.vcu_rpt_data.get_value('turn_light_actual')
-    #     self.turn_indicators_rpt_publisher.publish(self.msg_obj_indicators_rpt)
-    #
-    # def steering_rpt_timer_callback(self):
-    #     self.msg_obj_steering_rpt.steering_tire_angle = self.steer_rpt_data.get_value('steer_angle_actual')
-    #     self.steering_rpt_publisher.publish(self.msg_obj_steering_rpt)
-    #
-    # def gear_rpt_timer_callback(self):
-    #     self.msg_obj_gear_rpt.report = self.gear_rpt_data.get_value('gear_actual')
-    #     self.gear_rpt_publisher.publish(self.msg_obj_gear_rpt)
-    #
-    # def velocity_rpt_timer_callback(self):
-    #     self.msg_obj_velocity_rpt.header.stamp = self.get_clock().now().to_msg()
-    #     self.msg_obj_velocity_rpt.header.frame_id = "base_link"
-    #     self.msg_obj_velocity_rpt.longitudinal_velocity = float(self.vcu_rpt_data.get_value('speed'))
-    #     self.msg_obj_velocity_rpt.heading_rate = self.heading_rate
-    #     self.velocity_rpt_publisher.publish(self.msg_obj_velocity_rpt)
+    def hazard_lights_rpt_timer_callback(self):
+
+        casted_hazard_lights = 0
+        _val = self.vehicle_sta_fb.get_value('hazard_war_lamp_fb')
+        if _val == 0:
+            casted_hazard_lights = 1
+        elif _val == 1:
+            casted_hazard_lights = 2
+
+        self.msg_obj_hazardLights_rpt.report = casted_hazard_lights
+        self.hazard_lights_rpt_pub.publish(self.msg_obj_hazardLights_rpt)
+
+    def turn_indicators_rpt_timer_callback(self):
+
+        _val1 = self.vehicle_sta_fb.get_value('left_lamp_fb')
+        _val2 = self.vehicle_sta_fb.get_value('right_lamp_fb')
+        _val3 = self.vehicle_sta_fb.get_value('hazard_war_lamp_fb')
+
+        if _val3 == 0 and _val1 == 1:
+            casted_turn_indicators = 2
+        elif _val3 == 0 and _val2 == 1:
+            casted_turn_indicators = 3
+        else:
+            casted_turn_indicators = 1
+
+        self.msg_obj_indicators_rpt.report = casted_turn_indicators
+        self.turn_indicators_rpt_pub.publish(self.msg_obj_indicators_rpt)
+
+    def steering_rpt_timer_callback(self):
+        casted_steering_tire_angle = 0.0
+        _val1 = float(self.steer_sta_fb.get_value('steer_angle_fb')) * 0.001
+
+        if _val1 != 0.0:
+            casted_steering_tire_angle = _val1 * -1
+
+        self.msg_obj_steering_rpt.steering_tire_angle = casted_steering_tire_angle
+        self.steering_rpt_pub.publish(self.msg_obj_steering_rpt)
+
+    def gear_rpt_timer_callback(self):
+        casted_gear = 0
+        _val = self.drive_sta_fb.get_value('gear_fb')
+        _val2 = self.brake_sta_fb.get_value('epb_fb')
+        # D
+        if _val2 == 0 and _val == 1:
+            casted_gear = 2
+        # N
+        elif _val2 == 0 and _val == 2:
+            casted_gear = 1
+        # R
+        elif _val2 == 0 and _val == 3:
+            casted_gear = 20
+        # P
+        elif _val2 == 1:
+            casted_gear = 22
+
+        self.msg_obj_gear_rpt.report = casted_gear
+        self.gear_rpt_pub.publish(self.msg_obj_gear_rpt)
+
+    def velocity_rpt_timer_callback(self):
+        self.msg_obj_velocity_rpt.header.stamp = self.get_clock().now().to_msg()
+        self.msg_obj_velocity_rpt.header.frame_id = "base_link"
+        self.msg_obj_velocity_rpt.longitudinal_velocity = float(self.drive_sta_fb.get_value('speed_fb'))
+        self.velocity_rpt_pub.publish(self.msg_obj_velocity_rpt)
 
 
 def main(args=None):
