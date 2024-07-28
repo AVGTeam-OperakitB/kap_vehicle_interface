@@ -11,7 +11,7 @@ class VehicleCtrl:
     right_lamp_ctrl: int = 0
     speed_limit_mode: int = 0
     speed_limit_val: int = 0
-    CheckSumEn: int = 0
+    checksum_en: int = 0
 
     def update_value(self, **kwargs) -> None:
 
@@ -26,28 +26,21 @@ class VehicleCtrl:
             raise AttributeError(f"'VehicleCtrl' object has no attribute '{field_name}'")
         return getattr(self, field_name)
 
-    def add_cycle_count(self):
-
-        if self.checksum >= 255:
-            self.checksum = 0
-
-        self.checksum += 1
-
     def get_bytearray(self):
-        brake_en_ctrl = (self.brake_en_ctrl, 0, 0)
-        aeb_en_ctrl = (self.aeb_en_ctrl, 1, 1)
-        brake_dec_upper = ((self.brake_dec >> 8) & 0xFF, 8, 15)
-        brake_dec_lower = (self.brake_dec & 0b00000011, 22, 23)
-        brake_pedal_target_upper = ((self.brake_pedal_target >> 8) & 0xFF, 24, 31)
-        brake_pedal_target_lower = (self.brake_pedal_target & 0xFF, 32, 39)
-        checksum = (self.checksum, 56, 63)
+        pos_lamp_ctrl = (self.pos_lamp_ctrl, 0, 0)
+        head_lamp_ctrl = (self.head_lamp_ctrl, 1, 1)
+        left_lamp_ctrl = (self.left_lamp_ctrl, 2, 2)
+        right_lamp_ctrl = (self.right_lamp_ctrl, 3, 3)
+        speed_limit_mode = (self.speed_limit_mode, 24, 24)
+        speed_limit_val = (self.speed_limit_val, 32, 39)
+        checksum_en = (self.checksum_en, 48, 48)
 
         return generate_byte_array(8,
-                                   brake_en_ctrl,
-                                   aeb_en_ctrl,
-                                   brake_dec_upper,
-                                   brake_dec_lower,
-                                   brake_pedal_target_upper,
-                                   brake_pedal_target_lower,
-                                   checksum,
+                                   pos_lamp_ctrl,
+                                   head_lamp_ctrl,
+                                   left_lamp_ctrl,
+                                   right_lamp_ctrl,
+                                   speed_limit_mode,
+                                   speed_limit_val,
+                                   checksum_en,
                                    xor_checksum=False)

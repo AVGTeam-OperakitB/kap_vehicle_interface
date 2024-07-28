@@ -28,26 +28,34 @@ class SteerCtrl:
 
     def add_cycle_count(self):
 
-        if self.checksum >= 255:
-            self.checksum = 0
+        if self.steer_life_sig >= 15:
+            self.steer_life_sig = 0
 
-        self.checksum += 1
+        if self.checksum_132 >= 255:
+            self.checksum_132 = 0
+
+        self.steer_life_sig += 1
+        self.checksum_132 += 1
 
     def get_bytearray(self):
-        brake_en_ctrl = (self.brake_en_ctrl, 0, 0)
-        aeb_en_ctrl = (self.aeb_en_ctrl, 1, 1)
-        brake_dec_upper = ((self.brake_dec >> 8) & 0xFF, 8, 15)
-        brake_dec_lower = (self.brake_dec & 0b00000011, 22, 23)
-        brake_pedal_target_upper = ((self.brake_pedal_target >> 8) & 0xFF, 24, 31)
-        brake_pedal_target_lower = (self.brake_pedal_target & 0xFF, 32, 39)
-        checksum = (self.checksum, 56, 63)
+        steer_en_ctrl = (self.steer_en_ctrl, 0, 0)
+        steer_mode_ctrl = (self.steer_mode_ctrl, 4, 7)
+        steer_angle_target_lower = (self.steer_angle_target & 0xFF, 8, 15)
+        steer_angle_target_upper = ((self.steer_angle_target >> 8) & 0xFF, 16, 23)
+        steer_angle_rear_target_lower = (self.steer_angle_rear_target & 0xFF, 24, 31)
+        steer_angle_rear_target_upper = ((self.steer_angle_rear_target >> 8) & 0xFF, 32, 39)
+        steer_angle_speed_ctrl = (self.steer_angle_speed_ctrl, 40, 47)
+        steer_life_sig = (self.steer_life_sig, 48, 53)
+        checksum_132 = (self.checksum_132, 56, 63)
 
         return generate_byte_array(8,
-                                   brake_en_ctrl,
-                                   aeb_en_ctrl,
-                                   brake_dec_upper,
-                                   brake_dec_lower,
-                                   brake_pedal_target_upper,
-                                   brake_pedal_target_lower,
-                                   checksum,
+                                   steer_en_ctrl,
+                                   steer_mode_ctrl,
+                                   steer_angle_target_lower,
+                                   steer_angle_target_upper,
+                                   steer_angle_rear_target_lower,
+                                   steer_angle_rear_target_upper,
+                                   steer_angle_speed_ctrl,
+                                   steer_life_sig,
+                                   checksum_132,
                                    xor_checksum=False)

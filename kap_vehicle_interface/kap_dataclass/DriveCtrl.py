@@ -8,8 +8,8 @@ class DriveCtrl:
     driver_en_ctrl: int = 0
     driver_mode_ctrl: int = 0
     gear_ctrl: int = 0
-    speed_ctrl: int = 0
-    throttle_pdl_target: int = 0
+    speed_ctrl: float = 0.00
+    throttle_pdl_target: float = 0.0
     drive_life_sig: int = 0
     checksum_130: int = 0
 
@@ -28,26 +28,34 @@ class DriveCtrl:
 
     def add_cycle_count(self):
 
-        if self.checksum >= 255:
-            self.checksum = 0
+        if self.drive_life_sig >= 15:
+            self.drive_life_sig = 0
 
-        self.checksum += 1
+        if self.checksum_130 >= 255:
+            self.checksum_130 = 0
+
+        self.drive_life_sig += 1
+        self.checksum_130 += 1
 
     def get_bytearray(self):
-        brake_en_ctrl = (self.brake_en_ctrl, 0, 0)
-        aeb_en_ctrl = (self.aeb_en_ctrl, 1, 1)
-        brake_dec_upper = ((self.brake_dec >> 8) & 0xFF, 8, 15)
-        brake_dec_lower = (self.brake_dec & 0b00000011, 22, 23)
-        brake_pedal_target_upper = ((self.brake_pedal_target >> 8) & 0xFF, 24, 31)
-        brake_pedal_target_lower = (self.brake_pedal_target & 0xFF, 32, 39)
-        checksum = (self.checksum, 56, 63)
+        driver_en_ctrl = (self.driver_en_ctrl, 0, 0)
+        driver_mode_ctrl = (self.driver_mode_ctrl, 2, 3)
+        gear_ctrl = (self.gear_ctrl, 4, 5)
+        speed_ctrl_lower = (self.speed_ctrl & 0xFF, 8, 15)
+        speed_ctrl_upper = ((self.speed_ctrl >> 8) & 0xFF, 16, 23)
+        throttle_pdl_target_lower = (self.throttle_pdl_target & 0xFF, 24, 31)
+        throttle_pdl_target_upper = ((self.throttle_pdl_target >> 8) & 0b00000011, 32, 33)
+        drive_life_sig = (self.drive_life_sig, 48, 51)
+        checksum_130 = (self.checksum_130, 56, 63)
 
         return generate_byte_array(8,
-                                   brake_en_ctrl,
-                                   aeb_en_ctrl,
-                                   brake_dec_upper,
-                                   brake_dec_lower,
-                                   brake_pedal_target_upper,
-                                   brake_pedal_target_lower,
-                                   checksum,
+                                   driver_en_ctrl,
+                                   driver_mode_ctrl,
+                                   gear_ctrl,
+                                   speed_ctrl_lower,
+                                   speed_ctrl_upper,
+                                   throttle_pdl_target_lower,
+                                   throttle_pdl_target_upper,
+                                   drive_life_sig,
+                                   checksum_130,
                                    xor_checksum=False)

@@ -18,7 +18,6 @@ from kap_dataclass.DriveCtrl import DriveCtrl
 from kap_dataclass.VehicleCtrl import VehicleCtrl
 
 
-
 class CANCommandNode(Node):
 
     def __init__(self):
@@ -26,23 +25,23 @@ class CANCommandNode(Node):
         self.can_channel = 'can2'
         self.can_sender = CANSender(self.can_channel)
 
-        self.sub_gear_ctrl_cmd = self.create_subscription(GearCommand, '/control/command/gear_cmd',
+        self.sub_gear_cmd = self.create_subscription(GearCommand, '/control/command/gear_cmd',
+                                                     self.dispatch_command, 10)
+
+        self.sub_gate_mode_cmd = self.create_subscription(GateMode, '/control/current_gate_mode',
                                                           self.dispatch_command, 10)
 
-        self.sub_gate_mode_ctrl_cmd = self.create_subscription(GateMode, '/control/current_gate_mode',
-                                                               self.dispatch_command, 10)
+        self.sub_vehicle_emergency_cmd = self.create_subscription(VehicleEmergencyStamped,
+                                                                  '/control/command/emergency_cmd',
+                                                                  self.dispatch_command, 10)
 
-        self.sub_vehicle_emergency_ctrl_cmd = self.create_subscription(VehicleEmergencyStamped,
-                                                                       '/control/command/emergency_cmd',
-                                                                       self.dispatch_command, 10)
+        self.sub_turn_indicators_cmd = self.create_subscription(TurnIndicatorsCommand,
+                                                                '/control/command/turn_indicators_cmd',
+                                                                self.dispatch_command, 10)
 
-        self.sub_turn_indicators_ctrl_cmd = self.create_subscription(TurnIndicatorsCommand,
-                                                                     '/control/command/turn_indicators_cmd',
-                                                                     self.dispatch_command, 10)
-
-        self.sub_turn_hazard_lights_ctrl_cmd = self.create_subscription(HazardLightsCommand,
-                                                                        '/control/command/hazard_lights_cmd',
-                                                                        self.dispatch_command, 10)
+        self.sub_turn_hazard_lights_cmd = self.create_subscription(HazardLightsCommand,
+                                                                   '/control/command/hazard_lights_cmd',
+                                                                   self.dispatch_command, 10)
 
         self.sub_actuation = self.create_subscription(ActuationCommandStamped,
                                                       '/control/command/actuation_cmd',
@@ -65,45 +64,56 @@ class CANCommandNode(Node):
 
     def set_steer_ctrl_default_value(self):
 
-        steer_ctrl_cmd_data = {
+        steer_ctrl_cmd = {
             'steer_en_ctrl': 1,
-            'steer_angle_spd': 480,
-            'steer_angle_target': 500,
+            'steer_mode_ctrl': 0,
+            'steer_angle_target': 0,
+            'steer_angle_rear_target': 0,
+            'steer_angle_speed_ctrl': 480
         }
-        self.steer_ctrl_data.update_value(**steer_ctrl_cmd_data)
+
+        self.steer_ctrl_data.update_value(**steer_ctrl_cmd)
         self.can_sender.send(0x102, self.steer_ctrl_data.get_bytearray())
 
     def set_brake_ctrl_default_value(self):
 
-        gear_ctrl_cmd_data = {
-            'gear_en_ctrl': 1,
-            'gear_target': 3,
+        brake_ctrl_cmd = {
+            'brake_en': 1,
+            'brake_lamp_ctrl': 0,
+            'brake_pdl_target': 0.0,
+            'epb_ctrl': 0
         }
 
-        self.brake_ctrl_data.update_value(**gear_ctrl_cmd_data)
+        self.brake_ctrl_data.update_value(**brake_ctrl_cmd)
         self.can_sender.send(0x103, self.gear_ctrl_data.get_bytearray())
 
     def set_drive_ctrl_default_value(self):
 
-        park_ctrl_cmd_data = {
-            'park_en_ctrl': 1,
-            'park_target': 0,
+        drive_ctrl_cmd = {
+            'driver_en_ctrl': 1,
+            'driver_mode_ctrl': 1,
+            'gear_ctrl': 2,
+            'speed_ctrl': 0.00,
+            'throttle_pdl_target': 0.0,
         }
 
-        self.drive_ctrl_data.update_value(**park_ctrl_cmd_data)
+        self.drive_ctrl_data.update_value(**drive_ctrl_cmd)
         self.can_sender.send(0x104, self.park_ctrl_data.get_bytearray())
 
     def set_vehicle_ctrl_default_value(self):
 
-        vehicle_mode_ctrl_cmd_data = {
-            'steer_mode_ctrl': 0,
-            'drive_mode_ctrl': 0,
-            'turn_light_ctrl': 0,
+        vehicle_ctrl_cmd = {
+            'pos_lamp_ctrl': 1,
+            'head_lamp_ctrl': 1,
+            'left_lamp_ctrl': 0,
+            'right_lamp_ctrl': 0,
+            'speed_limit_mode': 0,
+            'speed_limit_val': 0,
+            'checksum_en': 1
         }
 
-        self.vehicle_ctrl_data.update_value(**vehicle_mode_ctrl_cmd_data)
+        self.vehicle_ctrl_data.update_value(**vehicle_ctrl_cmd)
         self.can_sender.send(0x105, self.vehicle_mode_ctrl_data.get_bytearray())
-
 
     def dispatch_command(self, msg):
 
@@ -115,7 +125,7 @@ class CANCommandNode(Node):
                 'brake_pedal_target': int(msg.actuation.brake_cmd / 0.01),
             }
             command_data_steering = {
-                'steer_angle_target': int(((math.degrees(msg.actuation.steer_cmd)) * (500 / 30)) + 500),
+                'steer_angle_target': int(((math.degrees(msg.actuation.steer_cmd)) * (500 / 30))),
             }
 
             self.throttle_ctrl_data.update_value(**command_data_throttle)
@@ -205,7 +215,6 @@ class CANCommandNode(Node):
     def vehicle_mode_ctrl_data_timer_callback(self):
         self.vehicle_mode_ctrl_data.add_cycle_count()
         self.can_sender.send(0x105, self.vehicle_mode_ctrl_data.get_bytearray())
-
 
 
 def main(args=None):

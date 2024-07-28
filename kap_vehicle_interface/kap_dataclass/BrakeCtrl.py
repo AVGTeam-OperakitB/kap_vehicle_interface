@@ -7,7 +7,7 @@ from kap_dataclass.data_utils import generate_byte_array
 class BrakeCtrl:
     brake_en: int = 0
     brake_lamp_ctrl: int = 0
-    brake_pdl_target: int = 0
+    brake_pdl_target: float = 0
     epb_ctrl: int = 0
     brake_life_sig: int = 0
     checksum_131: int = 0
@@ -27,26 +27,30 @@ class BrakeCtrl:
 
     def add_cycle_count(self):
 
-        if self.checksum >= 255:
-            self.checksum = 0
+        if self.brake_life_sig >= 15:
+            self.brake_life_sig = 0
 
-        self.checksum += 1
+        if self.checksum_131 >= 255:
+            self.checksum_131 = 0
+
+        self.brake_life_sig += 1
+        self.checksum_131 += 1
 
     def get_bytearray(self):
-        brake_en_ctrl = (self.brake_en_ctrl, 0, 0)
-        aeb_en_ctrl = (self.aeb_en_ctrl, 1, 1)
-        brake_dec_upper = ((self.brake_dec >> 8) & 0xFF, 8, 15)
-        brake_dec_lower = (self.brake_dec & 0b00000011, 22, 23)
-        brake_pedal_target_upper = ((self.brake_pedal_target >> 8) & 0xFF, 24, 31)
-        brake_pedal_target_lower = (self.brake_pedal_target & 0xFF, 32, 39)
-        checksum = (self.checksum, 56, 63)
+        brake_en = (self.brake_en, 0, 0)
+        brake_lamp_ctrl = (self.brake_lamp_ctrl, 1, 1)
+        brake_pdl_target_lower = (self.brake_pdl_target & 0xFF, 8, 15)
+        brake_pdl_target_upper = ((self.brake_pdl_target >> 8) & 0b00000011, 16, 17)
+        epb_ctrl = (self.epb_ctrl, 24, 25)
+        brake_life_sig = (self.brake_life_sig, 48, 51)
+        checksum_131 = (self.checksum_131, 56, 63)
 
         return generate_byte_array(8,
-                                   brake_en_ctrl,
-                                   aeb_en_ctrl,
-                                   brake_dec_upper,
-                                   brake_dec_lower,
-                                   brake_pedal_target_upper,
-                                   brake_pedal_target_lower,
-                                   checksum,
+                                   brake_en,
+                                   brake_lamp_ctrl,
+                                   brake_pdl_target_lower,
+                                   brake_pdl_target_upper,
+                                   epb_ctrl,
+                                   brake_life_sig,
+                                   checksum_131,
                                    xor_checksum=False)
